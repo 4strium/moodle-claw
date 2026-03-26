@@ -23,9 +23,6 @@ cargo build --release
 
 # Install to ~/.local/bin
 cp target/release/moodle-claw ~/.local/bin/
-
-# Or install via cargo
-cargo install --path edu-sync-cli
 ```
 
 ## Quick Start
