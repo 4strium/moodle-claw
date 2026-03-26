@@ -9,4 +9,4 @@
 pub mod account;
 pub mod config;
 pub mod content;
-pub(crate) mod util;
+pub mod util;

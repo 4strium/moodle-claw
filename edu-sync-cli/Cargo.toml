@@ -11,15 +11,26 @@ categories = ["command-line-utilities"]
 
 [dependencies]
 edu-sync = { path = "../edu-sync" }
+edu-ws = { path = "../edu-ws" }
 
 anyhow = "1.0"
+base64 = "0.22"
 clap = { version = "4", features = ["derive"] }
 dialoguer = "0.11"
+dirs = "5"
 futures-util = { version = "0.3", default-features = false, features = ["alloc"] }
 human-panic = "2"
 indicatif = "0.17"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+time = "0.3"
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "time"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 url = "2.2"
+reqwest = "0.12"
 clap_complete = { version = "4.5.47", features = ["unstable-dynamic"] }
+
+[[bin]]
+name = "moodle-claw"
+path = "src/main.rs"

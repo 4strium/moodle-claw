@@ -1,84 +1,142 @@
-# Edu Sync
+# Moodle-Claw
+
+A command-line tool and AI agent skill for interacting with Moodle LMS, based on [Edu Sync](https://github.com/mkroening/edu-sync).
 
 [![CI](https://github.com/mkroening/edu-sync/actions/workflows/ci.yml/badge.svg)](https://github.com/mkroening/edu-sync/actions/workflows/ci.yml)
 
-Edu Sync is a command line application that synchronizes the contents of Moodle instances to your computer.
+## Overview
 
-It accesses the Moodle instance via the Moodle mobile web services API, which is also used by the official Moodle mobile app.
-To be able to use Edu Sync with a Moodle instance, the Moodle mobile web services must explicitly be enabled by the instance.
+Moodle-Claw extends the original Edu Sync project to provide:
+- **Agent-friendly CLI** with JSON/Markdown output for AI integration
+- **SSO authentication** support for university single sign-on
+- **Course browsing** and content search capabilities
+- **On-demand file downloading** with intelligent caching
+- **OpenClaw skill** for natural language interaction with Moodle content
 
-This application is written in Rust with a focus on speed.
-Downloads are performed concurrently, which is beneficial when syncing many small files.
-
-## Usage
-
-You can view more detailed help information with:
-
-```bash
-$ edu-sync-cli help
-```
-
-1.  Add an account:
-
-    *   Using username and password:
-
-        ```bash
-        $ edu-sync-cli add --username <username> https://example.com ~/download-dir
-        # You will be prompted to enter your password
-        ```
-
-    *   Using a token for the Moodle mobile web service.
-        This could be obtained in some instances inside preferences/security keys.
-        It could also be obtained using  [SSO parameter on Moodle-DL](https://github.com/C0D3D3V/Moodle-DL) as shown [here](https://github.com/mkroening/edu-sync/issues/9#issuecomment-2446564050)
-
-        ```bash
-        $ edu-sync-cli add https://example.com ~/download-dir
-        # You will be prompted to enter your token
-        ```
-
-2.  Fetch available courses (populates the config file with courses):
-
-    ```bash
-    $ edu-sync-cli fetch
-    ```
-
-3.  Configure which courses to sync in the config file. Get the config path with:
-
-    ```bash
-    $ edu-sync-cli config
-    ```
-
-4.  Sync:
-
-    ```bash
-    $ edu-sync-cli sync
-    ```
+It accesses Moodle via the mobile web services API (same as the official Moodle app).
 
 ## Installation
 
-The binary name for Edu Sync is `edu-sync-cli`.
+```bash
+# Build from source
+cargo build --release
 
-[Archives of precompiled binaries](https://github.com/mkroening/edu-sync/releases) for Edu Sync are available for Windows, macOS and Linux.
+# Install to ~/.local/bin
+cp target/release/moodle-claw ~/.local/bin/
 
-If you're an Arch Linux user, then you can install Edu Sync from the [Arch User Repository](https://aur.archlinux.org/packages/edu-sync/).
-
-### Shell completions
-
-Edu Sync uses clap's dynamic completions. To generate the completion stub, use:
-
-```sh
-COMPLETE=<SHELL> edu-sync-cli
+# Or install via cargo
+cargo install --path edu-sync-cli
 ```
 
-Where `<SHELL>` is one of `bash`, `elvish`, `fish`, `powershell` or `zsh`
+## Quick Start
 
-If you use the AUR package, the completions for `bash`, `fish` and `zsh` should get installed automatically.
+### 1. Configure your Moodle account
 
-## Licensing
+```bash
+moodle-claw configure
+```
 
-This project is licensed under
-* The GNU General Public License v3.0 only ([LICENSE](LICENSE), or https://www.gnu.org/licenses/gpl-3.0.html)
+This will interactively prompt for:
+- Moodle server URL
+- Authentication method (Token, SSO, or Username/Password)
+- Download path
 
-### Trademark Notice
+### 2. List your courses
 
-Moodle™ is a [registered trademark](https://moodle.com/trademarks/) of Moodle Pty Ltd in many countries. Edu Sync is not sponsored, endorsed, licensed by, or affiliated with Moodle Pty Ltd.
+```bash
+moodle-claw courses --refresh
+```
+
+### 3. Browse course content
+
+```bash
+moodle-claw content "Course Name"
+```
+
+### 4. Download files
+
+```bash
+moodle-claw get "Course/Section/file.pdf"
+```
+
+### 5. Sync a course (download all files)
+
+```bash
+moodle-claw sync "Course Name"
+```
+
+## Authentication Methods
+
+### Direct Token
+```bash
+moodle-claw configure --url https://moodle.example.com --token YOUR_TOKEN --path ~/Moodle
+```
+
+### SSO (Single Sign-On)
+For universities using SSO:
+
+1. Log into Moodle in your browser
+2. Open developer console (F12) → Network tab
+3. Visit: `https://YOUR_MOODLE/admin/tool/mobile/launch.php?service=moodle_mobile_app&passport=12345&urlscheme=moodlemobile`
+4. Copy the failed request's link address (`moodlemobile://token=...`)
+5. Configure:
+   ```bash
+   moodle-claw configure --url https://moodle.example.com --sso-url "moodlemobile://token=..." --path ~/Moodle
+   ```
+
+### Username/Password
+```bash
+moodle-claw configure --url https://moodle.example.com --username user --password pass --path ~/Moodle
+```
+
+## Commands
+
+| Command | Description |
+|---------|-------------|
+| `moodle-claw configure` | Set up Moodle connection |
+| `moodle-claw status` | Show configuration status |
+| `moodle-claw courses` | List enrolled courses |
+| `moodle-claw content <course>` | Show course structure |
+| `moodle-claw search <query>` | Search across courses |
+| `moodle-claw get <path>` | Download a specific file |
+| `moodle-claw sync [course]` | Sync course files locally |
+
+All commands support `--output json` for machine-readable output.
+
+## OpenClaw Skill
+
+Moodle-Claw includes a `SKILL.md` file for use with OpenClaw agents. This allows natural language queries like:
+- "Explique-moi le cours de mécanique"
+- "Quel est l'exercice 3 du TD2 en maths?"
+- "Télécharge tous les fichiers du cours de physique"
+
+## Project Structure
+
+This project is based on the [Edu Sync](https://github.com/mkroening/edu-sync) Rust workspace:
+
+| Crate | Description |
+|-------|-------------|
+| `edu-sync-cli` | CLI application (`moodle-claw` binary) |
+| `edu-sync` | Core synchronization library |
+| `edu-ws` | Moodle web services API wrapper |
+| `edu-ws-derive` | Procedural macros |
+
+## Shell Completions
+
+```bash
+COMPLETE=<SHELL> moodle-claw
+```
+
+Where `<SHELL>` is one of `bash`, `elvish`, `fish`, `powershell`, or `zsh`.
+
+## License
+
+This project is licensed under the GNU General Public License v3.0 only ([LICENSE](LICENSE)).
+
+## Trademark Notice
+
+Moodle™ is a [registered trademark](https://moodle.com/trademarks/) of Moodle Pty Ltd. Moodle-Claw is not sponsored, endorsed, licensed by, or affiliated with Moodle Pty Ltd.
+
+## Credits
+
+Based on [Edu Sync](https://github.com/mkroening/edu-sync) by Martin Kröning.
