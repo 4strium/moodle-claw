@@ -2,8 +2,6 @@
 
 A command-line tool and AI agent skill for interacting with Moodle LMS, based on [Edu Sync](https://github.com/mkroening/edu-sync).
 
-[![CI](https://github.com/mkroening/edu-sync/actions/workflows/ci.yml/badge.svg)](https://github.com/mkroening/edu-sync/actions/workflows/ci.yml)
-
 ## Overview
 
 Moodle-Claw extends the original Edu Sync project to provide:
