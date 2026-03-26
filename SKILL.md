@@ -1,20 +1,14 @@
 ---
 name: moodle-claw
 description: Interact with Moodle LMS to browse courses, access learning materials, and answer questions about course content.
-metadata: 
-  openclaw:
-    requires:
-      bins: ["moodle-claw"]
-    install:
-      - id: download-moodle-claw
-        kind: download
-        url: https://github.com/4strium/moodle-claw/releases/download/v0.1/moodle-claw
-        bins: ["moodle-claw"]
 ---
 
 # Moodle-Claw Skill
 
 This skill allows you to interact with a Moodle learning management system (LMS) to help users with their courses, assignments, and learning materials.
+
+## Installation
+The `moodle-claw` binary is available in the `scripts` subfolder of this skill.
 
 ## Configuration
 
@@ -97,8 +91,11 @@ Searches for content across courses.
 ```bash
 moodle-claw get "Course/Section/file.pdf" [--course "Math"] [--dest /tmp]
 moodle-claw get --url "https://moodle.../pluginfile.php/..." [--dest /tmp]
+
+# Extract text from PDF files (recommended for reading content)
+moodle-claw get "file.pdf" --text --output json
 ```
-Downloads a file and returns its local path.
+Downloads a file and returns its local path. Use `--text` (`-t`) to automatically extract text content from PDF files.
 
 ### Sync Course
 ```bash
@@ -116,8 +113,8 @@ Downloads all files from a course.
 
 ### When user asks about specific content (e.g., "TD2", "exercise 3")
 1. Search for the content: `moodle-claw search "TD2" --course "Course Name"`
-2. Download the relevant file: `moodle-claw get "path/to/file"`
-3. Read the downloaded file to answer the question
+2. Download and extract text from PDF: `moodle-claw get "path/to/file.pdf" --text`
+3. The extracted text will be included in the output for you to analyze
 
 ### When user wants to work offline
 1. Sync the entire course: `moodle-claw sync "Course Name" --no-confirm`
@@ -146,10 +143,10 @@ moodle-claw get "Mécanique/Chapitre 1/cours.pdf" --output json
 # 1. Search for TD2 in math course
 moodle-claw search "TD2" --course "maths" --output json
 
-# 2. Download the TD2 file
-moodle-claw get "TD2.pdf" --course "maths" --output json
+# 2. Download the TD2 file and extract text
+moodle-claw get "TD2.pdf" --course "maths" --text --output json
 
-# 3. Read the file and answer about exercise 3
+# The text content will be in the JSON output for you to analyze
 ```
 
 **User**: "Télécharge tous les fichiers du cours de physique"
@@ -163,3 +160,4 @@ moodle-claw sync "Physique" --no-confirm
 - Use `--refresh` on `moodle-claw courses` to update the course list from server
 - Course names support fuzzy matching (partial names work)
 - The `--output json` flag is useful for parsing structured data
+- Use `--text` with `moodle-claw get` to extract text from PDF files directly

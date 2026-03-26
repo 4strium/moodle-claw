@@ -1,6 +1,6 @@
 //! Download and retrieve a specific file.
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use edu_sync::{config::Config, util::sanitize_path_component};
 use edu_ws::token::Token;
@@ -8,6 +8,7 @@ use serde::Serialize;
 use tokio::{
     fs::{self, File},
     io::AsyncWriteExt,
+    task,
 };
 
 use super::{
@@ -31,6 +32,9 @@ pub struct Command {
     /// Output directory (defaults to cache directory).
     #[arg(long, short = 'd')]
     dest: Option<PathBuf>,
+    /// Extract text content from PDF files and include it in the output.
+    #[arg(long, short = 't')]
+    text: bool,
     /// Output format.
     #[arg(long, short, value_enum, default_value_t = OutputFormat::Markdown)]
     output: OutputFormat,
@@ -42,18 +46,33 @@ struct GetResult {
     file_name: String,
     local_path: String,
     size: u64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    text_content: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    text_extraction_error: Option<String>,
 }
 
 impl Render for GetResult {
     fn to_markdown(&self) -> String {
-        format!(
+        let mut output = format!(
             "Downloaded: `{}`\n\
              Local path: `{}`\n\
              Size: {}",
             self.file_name,
             self.local_path,
             format_size(self.size)
-        )
+        );
+
+        if let Some(ref error) = self.text_extraction_error {
+            output.push_str(&format!("\n\nText extraction failed: {}", error));
+        }
+
+        if let Some(ref text) = self.text_content {
+            output.push_str("\n\n---\n\n## Extracted Text\n\n");
+            output.push_str(text);
+        }
+
+        output
     }
 }
 
@@ -75,13 +94,36 @@ fn cache_dir() -> PathBuf {
         .join("files")
 }
 
+/// Extract text from a PDF file.
+fn extract_pdf_text(path: &Path) -> Result<String, String> {
+    let bytes = std::fs::read(path).map_err(|e| format!("Failed to read file: {}", e))?;
+
+    pdf_extract::extract_text_from_mem(&bytes)
+        .map_err(|e| format!("PDF extraction error: {}", e))
+        .map(|text| {
+            // Clean up the extracted text
+            text.lines()
+                .map(|line| line.trim())
+                .filter(|line| !line.is_empty())
+                .collect::<Vec<_>>()
+                .join("\n")
+        })
+}
+
+/// Check if a file is a PDF based on extension.
+fn is_pdf(path: &Path) -> bool {
+    path.extension()
+        .map(|ext| ext.eq_ignore_ascii_case("pdf"))
+        .unwrap_or(false)
+}
+
 impl Command {
     pub async fn run(self) -> anyhow::Result<()> {
         let config = Config::read().await?;
 
         if !config.has_accounts() {
             print_error(
-                "No accounts configured. Run `moodle configure` first.",
+                "No accounts configured. Run `moodle-claw configure` first.",
                 self.output,
             );
             return Ok(());
@@ -124,7 +166,7 @@ impl Command {
             None => {
                 print_error(
                     &format!(
-                        "Course '{}' not found. Run `moodle courses --refresh` first.",
+                        "Course '{}' not found. Run `moodle-claw courses --refresh` first.",
                         course_query
                     ),
                     self.output,
@@ -185,39 +227,47 @@ impl Command {
                                 let file_path = file_dir.join(&content.name);
 
                                 // Check if already cached
-                                if file_path.exists() {
+                                let (status, size) = if file_path.exists() {
                                     let metadata = fs::metadata(&file_path).await?;
-                                    let result = GetResult {
-                                        status: "cached".to_string(),
-                                        file_name: content.name.clone(),
-                                        local_path: file_path.display().to_string(),
-                                        size: metadata.len(),
-                                    };
-                                    print_output(&result, self.output);
-                                    return Ok(());
-                                }
+                                    ("cached".to_string(), metadata.len())
+                                } else {
+                                    // Download the file
+                                    let mut download_url = url.clone();
+                                    account_config.token.apply(&mut download_url);
 
-                                // Download the file
-                                let mut download_url = url.clone();
-                                account_config.token.apply(&mut download_url);
+                                    let response = edu_sync::util::shared_http()
+                                        .get(download_url)
+                                        .send()
+                                        .await?;
 
-                                let response = edu_sync::util::shared_http()
-                                    .get(download_url)
-                                    .send()
-                                    .await?;
+                                    let bytes = response.bytes().await?;
+                                    let size = bytes.len() as u64;
 
-                                let bytes = response.bytes().await?;
-                                let size = bytes.len() as u64;
+                                    let mut file = File::create(&file_path).await?;
+                                    file.write_all(&bytes).await?;
+                                    file.flush().await?;
 
-                                let mut file = File::create(&file_path).await?;
-                                file.write_all(&bytes).await?;
-                                file.flush().await?;
+                                    ("downloaded".to_string(), size)
+                                };
+
+                                // Extract text if requested and file is PDF
+                                let (text_content, text_extraction_error) = if self.text && is_pdf(&file_path) {
+                                    let path_clone = file_path.clone();
+                                    match task::spawn_blocking(move || extract_pdf_text(&path_clone)).await? {
+                                        Ok(text) => (Some(text), None),
+                                        Err(e) => (None, Some(e)),
+                                    }
+                                } else {
+                                    (None, None)
+                                };
 
                                 let result = GetResult {
-                                    status: "downloaded".to_string(),
+                                    status,
                                     file_name: content.name.clone(),
                                     local_path: file_path.display().to_string(),
                                     size,
+                                    text_content,
+                                    text_extraction_error,
                                 };
 
                                 print_output(&result, self.output);
@@ -267,11 +317,24 @@ impl Command {
         file.write_all(&bytes).await?;
         file.flush().await?;
 
+        // Extract text if requested and file is PDF
+        let (text_content, text_extraction_error) = if self.text && is_pdf(&file_path) {
+            let path_clone = file_path.clone();
+            match task::spawn_blocking(move || extract_pdf_text(&path_clone)).await? {
+                Ok(text) => (Some(text), None),
+                Err(e) => (None, Some(e)),
+            }
+        } else {
+            (None, None)
+        };
+
         let result = GetResult {
             status: "downloaded".to_string(),
             file_name,
             local_path: file_path.display().to_string(),
             size,
+            text_content,
+            text_extraction_error,
         };
 
         print_output(&result, self.output);
