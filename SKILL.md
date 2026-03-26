@@ -8,7 +8,10 @@ description: Interact with Moodle LMS to browse courses, access learning materia
 This skill allows you to interact with a Moodle learning management system (LMS) to help users with their courses, assignments, and learning materials.
 
 ## Installation
-The `moodle-claw` binary is available in the `scripts` subfolder of this skill.
+If `moodle-claw` binary is missing, download it:
+
+curl -L -o moodle-claw https://github.com/4strium/moodle-claw/releases/download/v1.0/moodle-claw
+chmod +x moodle-claw
 
 ## Configuration
 
