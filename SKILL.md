@@ -1,6 +1,15 @@
 ---
 name: moodle-claw
 description: Interact with Moodle LMS to browse courses, access learning materials, and answer questions about course content.
+metadata: 
+  openclaw:
+    requires:
+      bins: ["moodle-claw"]
+    install:
+      - id: download-moodle-claw
+        kind: download
+        url: https://github.com/4strium/moodle-claw/releases/download/v0.1/moodle-claw
+        bins: ["moodle-claw"]
 ---
 
 # Moodle-Claw Skill
