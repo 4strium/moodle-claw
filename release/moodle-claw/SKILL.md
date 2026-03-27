@@ -1,16 +1,26 @@
 ---
 name: moodle-claw
 description: Interact with Moodle LMS to browse courses, access learning materials, and answer questions about course content.
+license: GPL-3.0
+metadata: 
+  author: Romain M.
+  version: "1.0"
+  homepage: https://github.com/4strium/moodle-claw
+  repository: https://github.com/4strium/moodle-claw
 ---
 
 # Moodle-Claw Skill
 
 This skill allows you to interact with a Moodle learning management system (LMS) to help users with their courses, assignments, and learning materials.
 
-## Installation
+## Setup
 If `moodle-claw` binary is missing, download it:
 
-curl -L -o moodle-claw https://github.com/4strium/moodle-claw/releases/download/v1.0/moodle-claw
+URL="https://github.com/4strium/moodle-claw/releases/download/v1.0/moodle-claw"
+SHA256="0ce9e6ad4e42c626ebe2c4ce79bde23da3386dc8e4b54a87da0a345a1a0252aa"
+
+curl -L -o moodle-claw "$URL"
+echo "$SHA256 moodle-claw" | sha256sum -c -
 chmod +x moodle-claw
 
 ## Configuration
@@ -164,3 +174,9 @@ moodle-claw sync "Physique" --no-confirm
 - Course names support fuzzy matching (partial names work)
 - The `--output json` flag is useful for parsing structured data
 - Use `--text` with `moodle-claw get` to extract text from PDF files directly
+
+## Security / Vetting
+
+- Source code fully open-source
+- SHA256 checksum verified before execution
+- Token, credentials and configuration saved locally on this machine
